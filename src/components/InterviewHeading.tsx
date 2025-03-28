@@ -1,20 +1,27 @@
 "use client";
-import { FC, useState, useEffect, useRef } from "react";
+import { FC, useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import SetupCardModal from "./SetupCardModal";
-import axios from "axios";
+import { useRouter } from "next/navigation";
+import { useAuth, SignInButton } from "@clerk/nextjs";
+import { toast } from "sonner";
 
 interface InterviewHeadingProps {
   className?: string;
+  onStart: (topic: string) => void;
 }
 
-const InterviewHeading: FC<InterviewHeadingProps> = ({ className = "" }) => {
+const InterviewHeading: FC<InterviewHeadingProps> = ({
+  className = "",
+  onStart,
+}) => {
   const [inputValue, setInputValue] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const maxChars = 100;
-  const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
+  const router = useRouter();
+
+  const { isSignedIn } = useAuth();
 
   // Calculate if text is approaching the button
   useEffect(() => {
@@ -77,39 +84,22 @@ const InterviewHeading: FC<InterviewHeadingProps> = ({ className = "" }) => {
     setInputValue(e.target.value);
   };
 
-  const handleStartClick = () => {
-    if (inputValue.trim()) {
-      setIsSetupModalOpen(true);
+  // Submit handler with validation
+  const handleSubmit = useCallback(() => {
+    const trimmedValue = inputValue.trim();
+
+    if (!trimmedValue) {
+      toast.error("Please enter a topic");
+      inputRef.current?.focus();
+      return;
     }
-  };
 
-  const handleSubmit = async (difficulty: string, questions: number) => {
-    const data = {
-      topic: inputValue,
-      difficulty,
-      questions,
-    };
-
-    try {
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/text/text-analysis`,
-        data,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (response.status === 200) {
-        console.log("Data submitted successfully");
-      } else {
-        console.error("Failed to submit data");
-      }
-    } catch (error) {
-      console.error("Error submitting data:", error);
+    if (isSignedIn) {
+      onStart(trimmedValue);
+    } else {
+      sessionStorage.setItem("interviewTopic", trimmedValue);
     }
-  };
+  }, [inputValue, isSignedIn, onStart]);
 
   return (
     <motion.div
@@ -123,9 +113,7 @@ const InterviewHeading: FC<InterviewHeadingProps> = ({ className = "" }) => {
         className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-center mb-3 sm:mb-4"
         variants={itemVariants}
       >
-        <span className="text-gray-900">
-          Master Your Tech Skills with Your{" "}
-        </span>
+        <span className="text-gray-900">Master Your Skills with Your </span>
         <span className="text-[#755CCD]">AI Reviewer</span>
       </motion.h1>
 
@@ -143,23 +131,43 @@ const InterviewHeading: FC<InterviewHeadingProps> = ({ className = "" }) => {
         className="w-full max-w-xs sm:max-w-sm md:max-w-md"
         variants={itemVariants}
       >
-        <div className="relative">
+        <div className="relative flex items-center">
           <input
             ref={inputRef}
             type="text"
             placeholder="Enter your field..."
             value={inputValue}
             onChange={handleInputChange}
-            className="w-full px-4 py-3 rounded-full border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#755CCD] text-sm sm:text-base pr-24 sm:pr-28"
+            className="w-full px-4 py-3 rounded-full border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#755CCD] text-sm sm:text-base pr-20 sm:pr-24"
             maxLength={maxChars}
           />
-          <button
-            onClick={handleStartClick}
-            className="absolute right-1 top-1 bg-orange-400 hover:bg-orange-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-full flex items-center justify-center transition-colors text-sm sm:text-base"
-          >
-            Start
-            <ArrowRight size={14} className="ml-1 hidden sm:inline" />
-          </button>
+
+          {isSignedIn ? (
+            <button
+              onClick={handleSubmit}
+              className="absolute right-1 top-1/2 transform -translate-y-1/2 bg-orange-400 hover:bg-orange-500 text-white px-3 sm:px-4 py-1.5 rounded-full flex items-center justify-center transition-colors text-sm sm:text-base"
+            >
+              Start
+              <ArrowRight size={14} className="ml-1 hidden sm:inline" />
+            </button>
+          ) : (
+            <div className="absolute right-1 top-1/2 transform -translate-y-1/2">
+              <SignInButton mode="modal">
+                <button
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 bg-orange-400 hover:bg-orange-500 text-white px-3 sm:px-4 py-1.5 rounded-full flex items-center justify-center transition-colors text-sm sm:text-base"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (inputValue.trim()) {
+                      sessionStorage.setItem("interviewTopic", inputValue);
+                    }
+                  }}
+                >
+                  Start
+                  <ArrowRight size={14} className="ml-1 hidden sm:inline" />
+                </button>
+              </SignInButton>
+            </div>
+          )}
         </div>
 
         {/* Only show preview when text actually enters buffer zone */}
@@ -169,12 +177,6 @@ const InterviewHeading: FC<InterviewHeadingProps> = ({ className = "" }) => {
           </div>
         )}
       </motion.div>
-      {/* Setup Card Modal */}
-      <SetupCardModal
-        isOpen={isSetupModalOpen}
-        onClose={() => setIsSetupModalOpen(false)}
-        onStart={handleSubmit}
-      />
     </motion.div>
   );
 };
