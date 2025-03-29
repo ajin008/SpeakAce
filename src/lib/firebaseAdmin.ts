@@ -1,19 +1,20 @@
+// Use either this (default import):
 import admin from "firebase-admin";
+// OR this (namespace import):
+// import * as admin from "firebase-admin";
+
 import { User } from "@clerk/nextjs/server";
 
 // Initialize Firebase Admin
-import * as admin from "firebase-admin";
-
 if (!admin.apps.length) {
   try {
     const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-      ? JSON.parse(
-          Buffer.from(
-            process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
-            "base64"
-          ).toString()
-        )
-      : require("../../config/firebase-service-account.json");
+      ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
+      : null;
+
+    if (!serviceAccount) {
+      throw new Error("Firebase service account not configured");
+    }
 
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
