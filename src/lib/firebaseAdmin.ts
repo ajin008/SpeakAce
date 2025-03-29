@@ -9,7 +9,12 @@ import { User } from "@clerk/nextjs/server";
 if (!admin.apps.length) {
   try {
     const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-      ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
+      ? JSON.parse(
+          Buffer.from(
+            process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
+            "base64"
+          ).toString("utf-8")
+        )
       : null;
 
     if (!serviceAccount) {
