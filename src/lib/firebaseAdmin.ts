@@ -2,15 +2,23 @@ import admin from "firebase-admin";
 import { User } from "@clerk/nextjs/server";
 
 // Initialize Firebase Admin
+import * as admin from "firebase-admin";
+
 if (!admin.apps.length) {
   try {
     const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-      ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
+      ? JSON.parse(
+          Buffer.from(
+            process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
+            "base64"
+          ).toString()
+        )
       : require("../../config/firebase-service-account.json");
 
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
     });
+
     console.log("Firebase Admin initialized successfully");
   } catch (error) {
     console.error("Failed to initialize Firebase Admin:", error);
