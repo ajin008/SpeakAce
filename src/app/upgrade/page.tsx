@@ -57,7 +57,7 @@ const PricingCard = ({
 
       {/* Price */}
       <div className="text-3xl sm:text-4xl font-extrabold mb-3 sm:mb-4 flex items-center">
-        ${price}
+        ₹{price}
         <span className="text-xs sm:text-sm ml-1 sm:ml-2 text-gray-500">
           /month
         </span>
@@ -130,7 +130,7 @@ const Page = () => {
   const pricingPlans = [
     {
       title: "Basic",
-      price: 99,
+      price: 49,
       features: [
         "Up to 10 AI Reviews per month",
         "Basic performance analytics",
@@ -148,7 +148,7 @@ const Page = () => {
     },
     {
       title: "Pro",
-      price: 199,
+      price: 99,
       features: [
         "Up to 50 AI Reviews per month",
         "Advanced performance analytics",
@@ -167,7 +167,7 @@ const Page = () => {
     },
     {
       title: "Enterprise",
-      price: 299,
+      price: 149,
       features: [
         "Unlimited AI Reviews",
         "Comprehensive performance analytics",
