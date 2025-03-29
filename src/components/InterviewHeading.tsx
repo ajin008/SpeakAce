@@ -85,21 +85,54 @@ const InterviewHeading: FC<InterviewHeadingProps> = ({
   };
 
   // Submit handler with validation
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     const trimmedValue = inputValue.trim();
 
     if (!trimmedValue) {
       toast.error("Please enter a topic");
-      inputRef.current?.focus();
       return;
     }
 
     if (isSignedIn) {
-      onStart(trimmedValue);
+      try {
+        toast.loading("Preparing your interview...");
+
+        const response = await fetch("/api/vapi/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            techStack: trimmedValue,
+            userId: "user_2uu7zjlzTb9cDUbsdusdZEE6zvS",
+          }),
+        });
+
+        // Only proceed if response is successful
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || "Request failed");
+        }
+
+        const data = await response.json();
+
+        // Additional success check
+        if (!data?.success) {
+          throw new Error(data.error || "Invalid response");
+        }
+
+        console.log("API Response:", data);
+
+        // ONLY NAVIGATE IF EVERYTHING SUCCEEDS
+        toast.success("review ready!");
+        router.push(`/Review/${data.interviewId}`);
+      } catch (error) {
+        toast.dismiss(); // Clear loading state
+        toast.error(error instanceof Error ? error.message : "Failed to start");
+        console.error("Interview creation failed:", error);
+      }
     } else {
       sessionStorage.setItem("interviewTopic", trimmedValue);
     }
-  }, [inputValue, isSignedIn, onStart]);
+  }, [inputValue, isSignedIn, router]);
 
   return (
     <motion.div

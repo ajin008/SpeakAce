@@ -6,7 +6,7 @@ if (!admin.apps.length) {
   try {
     const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
       ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
-      : require("../../firebase-service-account.json");
+      : require("../../config/firebase-service-account.json");
 
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
