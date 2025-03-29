@@ -5,6 +5,10 @@ import { db } from "../../../../lib/firebaseAdmin";
 // Initialize with the correct environment variable name
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY!);
 
+export async function GET(request: Request) {
+  return NextResponse.json({ success: true, message: "Hello from VAP:" });
+}
+
 export async function POST(request: Request) {
   console.log("POST /api/vapi/generate is triggering");
 
