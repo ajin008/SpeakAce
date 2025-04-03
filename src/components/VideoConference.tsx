@@ -1,9 +1,26 @@
-import React from "react";
+"use client";
+import React, { useState, useEffect } from "react";
 import VoiceControl from "./VoiceControl";
 import Image from "next/image";
 import img from "../../public/Cartoon Style Robot.jpg";
 
-const VideoConference: React.FC = () => {
+interface VideoConferenceProps {
+  userId: string;
+  userName: string;
+  jobField: string;
+}
+
+const VideoConference: React.FC<VideoConferenceProps> = ({
+  userId,
+  userName,
+  jobField,
+}) => {
+  const [isConnected, setIsConnected] = useState(false);
+
+  const handleConnect = () => {
+    setIsConnected(true);
+  };
+
   return (
     <div className="w-full lg:w-[90%] lg:max-w-5xl h-[70vh] sm:h-[80vh] lg:h-[85vh] rounded-lg flex flex-col justify-between p-4 mx-auto">
       {/* Video Feed Area */}
@@ -13,17 +30,35 @@ const VideoConference: React.FC = () => {
             <Image
               src={img}
               alt="logo"
-              width={150} // Set the desired width
-              height={150} // Set the desired height
+              width={150}
+              height={150}
               className="object-contain"
             />
           </span>
         </div>
       </div>
 
-      {/* Voice Control Section */}
+      {/* Conditionally render Connect Button or Voice Control */}
       <div className="flex justify-center items-center mt-4">
-        <VoiceControl />
+        {!isConnected ? (
+          <button
+            onClick={handleConnect}
+            className="bg-amber-400 hover:bg-amber-600 text-white font-medium py-2 px-6 rounded-full transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-300"
+          >
+            Connect
+          </button>
+        ) : (
+          <VoiceControl
+            userId={userId}
+            userName={userName}
+            jobField={jobField}
+            onStart={() => console.log("Interview started")}
+            onCancel={() => {
+              console.log("Interview cancelled");
+              setIsConnected(false); // Reset to show Connect button again
+            }}
+          />
+        )}
       </div>
     </div>
   );

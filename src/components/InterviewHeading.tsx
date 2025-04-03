@@ -3,7 +3,7 @@ import { FC, useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useAuth, SignInButton } from "@clerk/nextjs";
+import { useAuth, SignInButton, useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
 
 interface InterviewHeadingProps {
@@ -20,6 +20,8 @@ const InterviewHeading: FC<InterviewHeadingProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const maxChars = 100;
   const router = useRouter();
+
+  const { user } = useUser(); // Client-side user hook
 
   const { isSignedIn } = useAuth();
 
@@ -89,7 +91,7 @@ const InterviewHeading: FC<InterviewHeadingProps> = ({
     const trimmedValue = inputValue.trim();
 
     if (!trimmedValue) {
-      toast.error("Please enter a topic");
+      toast.error("Please enter a job field");
       return;
     }
 
@@ -97,42 +99,32 @@ const InterviewHeading: FC<InterviewHeadingProps> = ({
       try {
         toast.loading("Preparing your interview...");
 
-        const response = await fetch("/api/vapi/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            techStack: trimmedValue,
-            userId: "user_2uu7zjlzTb9cDUbsdusdZEE6zvS",
-          }),
-        });
+        // Store basic data in sessionStorage
+        sessionStorage.setItem(
+          "interviewData",
+          JSON.stringify({
+            jobField: trimmedValue,
+            userId: user.id,
+            userName:
+              `${user.firstName} ${user.lastName}`.trim() || "Anonymous",
+          })
+        );
+        const reviewRoute = `/Review/${user.id}`;
 
-        // Only proceed if response is successful
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || "Request failed");
-        }
-
-        const data = await response.json();
-
-        // Additional success check
-        if (!data?.success) {
-          throw new Error(data.error || "Invalid response");
-        }
-
-        console.log("API Response:", data);
-
-        // ONLY NAVIGATE IF EVERYTHING SUCCEEDS
-        toast.success("review ready!");
-        router.push(`/Review/${data.interviewId}`);
+        // Directly navigate to review page
+        router.push(reviewRoute);
       } catch (error) {
-        toast.dismiss(); // Clear loading state
-        toast.error(error instanceof Error ? error.message : "Failed to start");
-        console.error("Interview creation failed:", error);
+        toast.error(
+          "Failed to prepare interview: " +
+            (error instanceof Error ? error.message : "Unknown error")
+        );
+        console.error("Error:", error);
       }
     } else {
       sessionStorage.setItem("interviewTopic", trimmedValue);
+      // Handle guest user flow if needed
     }
-  }, [inputValue, isSignedIn, router]);
+  }, [inputValue, isSignedIn, router, user]);
 
   return (
     <motion.div

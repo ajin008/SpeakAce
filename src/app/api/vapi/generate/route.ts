@@ -1,86 +1,121 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { db } from "../../../../lib/firebaseAdmin";
+import { db } from "@/lib/firebaseAdmin";
 
-// Initialize with the correct environment variable name
+// Initialize Google Generative AI
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY!);
 
-export async function GET(request: Request) {
-  return NextResponse.json({ success: true, message: "Hello from VAP:" });
-}
-
 export async function POST(request: Request) {
-  console.log("POST /api/vapi/generate is triggering");
-
   try {
-    // Parse the request body
-    const { techStack, userId } = await request.json();
-    console.log("tech stack and userId received:", techStack, userId);
+    console.log("Received POST request to /api/vapi/generate");
+    // 1. Extract and validate data
+    const body = await request.json();
+    const { interviewType, experienceLevel, amount, jobField, userId } = body;
 
-    // Validate the input
-    if (!techStack || !userId) {
+    console.log("Received request body:", body);
+
+    // Validate required fields
+    const missingFields = [];
+    if (!interviewType) missingFields.push("interviewType");
+    if (!experienceLevel) missingFields.push("experienceLevel");
+    if (amount === undefined || amount === null) missingFields.push("amount");
+    if (!jobField) missingFields.push("jobField");
+
+    if (missingFields.length > 0) {
       return NextResponse.json(
-        { success: false, error: "Missing techStack or userId" },
+        {
+          success: false,
+          error: `Missing required fields: ${missingFields.join(", ")}`,
+          receivedFields: body,
+        },
         { status: 400 }
       );
     }
 
-    // Verify API key is loaded
-    if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-      throw new Error("Google API key is not configured");
-    }
-
+    // 2. Generate questions with Gemini
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const prompt = `
+      Create ${amount} interview questions for a ${experienceLevel} level candidate 
+      applying for a position in ${jobField}. The interview type is ${interviewType}.
+      
+      Each question should be challenging but appropriate for the experience level.
+      Format the response as a valid JSON array of objects, where each object has:
+      - "question": the interview question text
+      - "expectedTopics": array of key topics the answer should cover
+      - "difficulty": a rating from 1-5
+      
+      Example format:
+      [
+        {
+          "question": "Can you describe a challenging project you worked on?",
+          "expectedTopics": ["Problem solving", "Technical skills", "Teamwork"],
+          "difficulty": 3
+        }
+      ]
+    `;
 
-    const prompt = `Generate exactly 5 interview questions about ${techStack.trim()} as a JSON array.
-      Format must be: ["question 1", "question 2", "question 3", "question 4", "question 5"]
-      Do not include any additional text or explanations.`;
+    console.log("Making Gemini API request with prompt:", prompt);
 
     const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const responseText = await result.response.text();
 
-    // Parse and validate questions
+    console.log("Received raw response from Gemini:", responseText);
+
+    // 3. Parse and validate response
     let questions;
     try {
-      const jsonMatch = text.match(/\[.*\]/s);
-      if (!jsonMatch) throw new Error("No valid JSON array found in response");
-      questions = JSON.parse(jsonMatch[0]);
-
-      // Fixed syntax error here - added missing parenthesis
-      if (!Array.isArray(questions)) {
-        throw new Error("Generated questions are not in array format");
+      questions = JSON.parse(responseText);
+      if (!Array.isArray(questions) || questions.length === 0) {
+        throw new Error("Empty or invalid question array");
       }
-    } catch (parseError) {
-      console.error("Failed to parse questions:", text);
+    } catch (error) {
+      console.error("Failed to parse Gemini response:", responseText);
       throw new Error("Invalid question format from AI");
     }
 
-    // Save to Firestore
-    const interviewRef = await db
-      .collection("users")
-      .doc(userId)
-      .collection("interviews")
-      .add({
-        techStack: techStack.split(","),
+    console.log("Successfully parsed questions:", questions);
+
+    // 4. Store in Firebase
+    try {
+      const interviewRef = db.collection("interviews").doc();
+      await interviewRef.set({
+        userId: userId || "unknown",
+        jobField,
+        interviewType,
+        experienceLevel,
+        amount,
         questions,
-        userId,
-        finalized: true,
         createdAt: new Date().toISOString(),
       });
+      console.log("Saved interview to Firebase with ID:", interviewRef.id);
+    } catch (dbError) {
+      console.error("Firebase error:", dbError);
+      // Continue process - don't fail if DB storage fails
+    }
 
+    // 5. Return success
     return NextResponse.json({
       success: true,
-      interviewId: interviewRef.id,
+      questionsCount: questions.length,
       questions,
     });
   } catch (error) {
-    console.error("Error in /api/vapi/generate:", error);
+    console.error("API Error:", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+    });
+
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to generate or save interview",
-        details: error instanceof Error ? error.message : String(error),
+        error: "Interview generation failed",
+        details:
+          process.env.NODE_ENV === "development"
+            ? error instanceof Error
+              ? error.message
+              : String(error)
+            : undefined,
       },
       { status: 500 }
     );
