@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { vapi } from "@/lib/vapi.sdk";
@@ -74,7 +74,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
         setVoiceState(VoiceState.Idle);
       });
 
-      vapi.on("message", async (message) => {
+      vapi.on("message", (message) => {
         console.log("Vapi message:", message);
         if (
           message.type === "transcript" &&
@@ -112,7 +112,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
               userId,
               userName,
               jobField,
-              techStack: collectedData.techStack,
+              techStack: userResponse,
               experienceLevel: collectedData.experienceLevel,
               numQuestions: userResponse,
             };
@@ -128,34 +128,37 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
 
             setCollectedData((prev) => ({ ...prev, questions }));
             vapi.speak(`Here’s your first question: ${questions[0]}`);
-          } else if (collectedData.questions) {
+          } else if (
+            collectedData.questions &&
+            !collectedData.answers?.[
+              collectedData.questions.indexOf(questions[0])
+            ]
+          ) {
             setCollectedData((prev) => {
               const answers = [...(prev.answers || []), userResponse];
-              const currentIndex = answers.length - 1;
-              if (currentIndex + 1 < collectedData.questions.length) {
-                vapi.speak(
-                  `Next question: ${collectedData.questions[currentIndex + 1]}`
-                );
-              } else {
-                vapi.speak("Interview complete! Saving your answers...");
-                // Send final data to backend for Firebase storage
-                fetch("/api/vapi/generate", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    userId,
-                    userName,
-                    jobField,
-                    techStack: collectedData.techStack,
-                    experienceLevel: collectedData.experienceLevel,
-                    numQuestions: collectedData.numQuestions,
-                    questions: collectedData.questions,
-                    answers,
-                  }),
-                }).then(() => vapi.stop());
-              }
               return { ...prev, answers };
             });
+            const currentIndex = collectedData.questions.indexOf(questions[0]);
+            if (currentIndex + 1 < collectedData.questions.length) {
+              vapi.speak(
+                `Next question: ${collectedData.questions[currentIndex + 1]}`
+              );
+            } else {
+              vapi.speak("Interview complete! Saving your answers...");
+              // Send final data to backend for Firebase storage
+              await fetch("/api/vapi/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  userId,
+                  userName,
+                  jobField,
+                  questions: collectedData.questions,
+                  answers,
+                }),
+              });
+              vapi.stop();
+            }
           }
         }
       });

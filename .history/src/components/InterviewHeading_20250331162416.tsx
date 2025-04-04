@@ -97,6 +97,8 @@ const InterviewHeading: FC<InterviewHeadingProps> = ({
 
     if (isSignedIn) {
       try {
+        toast.loading("Preparing your interview...");
+
         // Store basic data in sessionStorage
         sessionStorage.setItem(
           "interviewData",

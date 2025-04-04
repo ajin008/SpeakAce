@@ -97,6 +97,8 @@ const InterviewHeading: FC<InterviewHeadingProps> = ({
 
     if (isSignedIn) {
       try {
+        const loadingToastId = toast.loading("Preparing your interview...");
+
         // Store basic data in sessionStorage
         sessionStorage.setItem(
           "interviewData",
@@ -108,6 +110,8 @@ const InterviewHeading: FC<InterviewHeadingProps> = ({
           })
         );
         const reviewRoute = `/Review/${user.id}`;
+
+        toast.dismiss(loadingToastId);
 
         // Directly navigate to review page
         router.push(reviewRoute);

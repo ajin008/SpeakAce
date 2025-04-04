@@ -27,11 +27,9 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
 }) => {
   const [voiceState, setVoiceState] = useState<VoiceState>(VoiceState.Idle);
   const [collectedData, setCollectedData] = useState<{
-    techStack?: string;
-    experienceLevel?: string;
     numQuestions?: string;
-    questions?: string[];
-    answers?: string[];
+    experienceLevel?: string;
+    interviewType?: string;
   }>({});
 
   const handleStart = useCallback(async () => {
@@ -41,17 +39,15 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
       toast.success("Conversation started!");
 
       // Log for debugging
-      console.log("Starting Vapi with userId:", userId);
       console.log("Starting Vapi with userName:", userName);
-      console.log("Starting Vapi with jobField:", jobField);
       console.log("Assistant ID:", process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID);
 
       // Validate inputs
       if (!process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID) {
         throw new Error("NEXT_PUBLIC_VAPI_WORKFLOW_ID is not defined");
       }
-      if (!userId || !userName || !jobField) {
-        throw new Error("userId, userName, or jobField is missing");
+      if (!userName) {
+        throw new Error("userName is missing");
       }
 
       // Set up event listeners BEFORE starting the call
@@ -74,89 +70,14 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
         setVoiceState(VoiceState.Idle);
       });
 
-      vapi.on("message", async (message) => {
+      vapi.on("message", (message) => {
         console.log("Vapi message:", message);
         if (
           message.type === "transcript" &&
-          message.transcriptType === "final" &&
-          message.role === "user"
+          message.transcriptType === "final"
         ) {
-          const userResponse = message.transcript.trim();
+          const userResponse = message.transcript;
           console.log("User said:", userResponse);
-
-          // Collect initial info
-          if (!collectedData.techStack) {
-            setCollectedData((prev) => ({ ...prev, techStack: userResponse }));
-            vapi.speak(
-              "Great! What is your experience level? (Beginner, mid-level, or senior-level)"
-            );
-          } else if (!collectedData.experienceLevel) {
-            setCollectedData((prev) => ({
-              ...prev,
-              experienceLevel: userResponse,
-            }));
-            vapi.speak(
-              "Got it! How many questions would you like me to prepare?"
-            );
-          } else if (!collectedData.numQuestions) {
-            setCollectedData((prev) => ({
-              ...prev,
-              numQuestions: userResponse,
-            }));
-            vapi.speak(
-              "Perfect! Sending your info to the backend to generate questions..."
-            );
-
-            // Send collected data to backend
-            const payload = {
-              userId,
-              userName,
-              jobField,
-              techStack: collectedData.techStack,
-              experienceLevel: collectedData.experienceLevel,
-              numQuestions: userResponse,
-            };
-            const response = await fetch("/api/vapi/generate", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            });
-
-            if (!response.ok) throw new Error("Failed to generate questions");
-            const data = await response.json();
-            const questions = data.questions || [];
-
-            setCollectedData((prev) => ({ ...prev, questions }));
-            vapi.speak(`Here’s your first question: ${questions[0]}`);
-          } else if (collectedData.questions) {
-            setCollectedData((prev) => {
-              const answers = [...(prev.answers || []), userResponse];
-              const currentIndex = answers.length - 1;
-              if (currentIndex + 1 < collectedData.questions.length) {
-                vapi.speak(
-                  `Next question: ${collectedData.questions[currentIndex + 1]}`
-                );
-              } else {
-                vapi.speak("Interview complete! Saving your answers...");
-                // Send final data to backend for Firebase storage
-                fetch("/api/vapi/generate", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    userId,
-                    userName,
-                    jobField,
-                    techStack: collectedData.techStack,
-                    experienceLevel: collectedData.experienceLevel,
-                    numQuestions: collectedData.numQuestions,
-                    questions: collectedData.questions,
-                    answers,
-                  }),
-                }).then(() => vapi.stop());
-              }
-              return { ...prev, answers };
-            });
-          }
         }
       });
 
@@ -169,8 +90,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
       // Start the Vapi assistant with the assistant ID as a string
       await vapi.start(process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID, {
         variableValues: {
-          userName,
-          jobField,
+          "vishnu",
         },
       });
     } catch (error) {
@@ -178,7 +98,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
       toast.error("Failed to start: " + error.message);
       setVoiceState(VoiceState.Idle);
     }
-  }, [userName, jobField, userId, collectedData]);
+  }, [userName, onStart]);
 
   const handleCancel = useCallback(() => {
     if (voiceState !== VoiceState.Idle) {
