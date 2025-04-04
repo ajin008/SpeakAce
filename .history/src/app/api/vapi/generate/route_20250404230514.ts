@@ -9,7 +9,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     console.log("Received payload from Vapi:", body);
 
-    const { userName, age } = body.data || body;
+    // Expect userName and age from Vapi
+    const { userName, age } = body.data || body; // Handle possible nested structure
 
     if (!userName || !age) {
       return NextResponse.json(
@@ -18,8 +19,10 @@ export async function POST(request: Request) {
       );
     }
 
+    // Log the collected age
     console.log(`User ${userName} said their age is: ${age}`);
 
+    // Return a simple response
     return NextResponse.json({
       message: "Age received successfully",
       userName,

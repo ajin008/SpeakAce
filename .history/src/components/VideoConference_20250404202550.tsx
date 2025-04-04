@@ -41,7 +41,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({
           onStart={() => console.log("Interview started")}
           onCancel={() => {
             console.log("Interview cancelled");
-            // Reset to show Connect button again
+            setIsConnected(false); // Reset to show Connect button again
           }}
         />
       </div>

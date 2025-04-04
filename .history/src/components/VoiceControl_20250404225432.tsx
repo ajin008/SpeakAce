@@ -33,72 +33,93 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
   }>({});
 
   const handleStart = useCallback(async () => {
-    try {
-      setVoiceState(VoiceState.Speaking);
-      onStart?.();
-      toast.success("Conversation started!");
+    setVoiceState(VoiceState.Speading);
+    onStart?.();
+    toast.success("Interview started!");
 
-      // Log for debugging
-      console.log("Starting Vapi with userName:", userName);
-      console.log("Assistant ID:", process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID);
+    // Start the Vapi assistant with initial user data
+    vapi.start({
+      assistantId: process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID, // "319e26ee-b070-459c-abfe-368bee2332a8"
+      variables: {
+        userId, // Pass userId to Vapi
+        userName,
+        jobField,
+      },
+    });
 
-      // Validate inputs
-      if (!process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID) {
-        throw new Error("NEXT_PUBLIC_VAPI_WORKFLOW_ID is not defined");
-      }
-      if (!userName) {
-        throw new Error("userName is missing");
-      }
+    let questions = null;
+    let currentQuestionIndex = 0;
 
-      // Set up event listeners BEFORE starting the call
-      vapi.on("call-start", () => {
-        console.log("Call has started.");
-      });
-
-      vapi.on("speech-start", () => {
-        console.log("Assistant speech has started.");
+    const askNextQuestion = () => {
+      if (questions && currentQuestionIndex < questions.length) {
+        vapi.say(questions[currentQuestionIndex]);
         setVoiceState(VoiceState.Speaking);
-      });
-
-      vapi.on("speech-end", () => {
-        console.log("Assistant speech has ended.");
-        setVoiceState(VoiceState.Processing);
-      });
-
-      vapi.on("call-end", () => {
-        console.log("Call has ended.");
+      } else if (questions && currentQuestionIndex >= questions.length) {
+        vapi.say(
+          "Thank you for completing the interview! We'll provide feedback soon."
+        );
         setVoiceState(VoiceState.Idle);
-      });
+      }
+    };
 
-      vapi.on("message", (message) => {
-        console.log("Vapi message:", message);
-        if (
-          message.type === "transcript" &&
-          message.transcriptType === "final"
-        ) {
-          const userResponse = message.transcript;
-          console.log("User said:", userResponse);
+    // Listen for messages from Vapi
+    vapi.on("message", async (message) => {
+      if (message.type === "transcript" && message.transcriptType === "final") {
+        const userResponse = message.transcript;
+        console.log("User said:", userResponse);
+
+        // If questions are already received, treat this as an answer to a question
+        if (questions && currentQuestionIndex < questions.length) {
+          setVoiceState(VoiceState.Processing);
+          await fetch("https://speak-ace-yiot.vercel.app/api/vapi/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId,
+              answer: userResponse,
+              question: questions[currentQuestionIndex],
+            }),
+          });
+          currentQuestionIndex++;
+          askNextQuestion();
         }
-      });
+      }
 
-      vapi.on("error", (error) => {
-        console.error("Vapi error:", error);
-        toast.error("Vapi error: " + error.message);
-        setVoiceState(VoiceState.Idle);
-      });
+      // Check for a function call from Vapi (if it triggers the backend)
+      if (
+        message.type === "function-call" &&
+        message.functionCall.name === "sendToBackend"
+      ) {
+        const args = message.functionCall.arguments;
+        setVoiceState(VoiceState.Processing);
 
-      // Start the Vapi assistant with the assistant ID as a string
-      await vapi.start(process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID, {
-        variableValues: {
-          userName,
-        },
-      });
-    } catch (error) {
-      console.error("Error in handleStart:", error);
-      toast.error("Failed to start: " + error.message);
-      setVoiceState(VoiceState.Idle);
-    }
-  }, [userName, onStart]);
+        // Fetch questions from backend (in case Vapi doesn't trigger it directly)
+        const response = await fetch(
+          "https://speak-ace-yiot.vercel.app/api/vapi/generate",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId,
+              userName,
+              jobField,
+              numQuestions: args.numQuestions,
+              experienceLevel: args.experienceLevel,
+              interviewType: args.interviewType,
+            }),
+          }
+        );
+        const result = await response.json();
+        questions = result.questions;
+        currentQuestionIndex = 0;
+        askNextQuestion();
+      }
+    });
+
+    vapi.on("speech-end", () => {
+      setVoiceState(VoiceState.Processing);
+    });
+  }, [userId, userName, jobField, onStart]);
 
   const handleCancel = useCallback(() => {
     if (voiceState !== VoiceState.Idle) {

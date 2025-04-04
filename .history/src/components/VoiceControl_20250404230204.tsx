@@ -34,7 +34,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
 
   const handleStart = useCallback(async () => {
     try {
-      setVoiceState(VoiceState.Speaking);
+      setVoiceState(VoiceState.Speaking); // Note: Fix typo "Speading" to "Speaking"
       onStart?.();
       toast.success("Conversation started!");
 
@@ -42,34 +42,22 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
       console.log("Starting Vapi with userName:", userName);
       console.log("Assistant ID:", process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID);
 
-      // Validate inputs
       if (!process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID) {
-        throw new Error("NEXT_PUBLIC_VAPI_WORKFLOW_ID is not defined");
+        throw new Error("VAPI_WORKFLOW_ID is not defined");
       }
       if (!userName) {
         throw new Error("userName is missing");
       }
 
-      // Set up event listeners BEFORE starting the call
-      vapi.on("call-start", () => {
-        console.log("Call has started.");
+      // Start the Vapi assistant with only userName
+      await vapi.start({
+        assistantId: process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID, // "319e26ee-b070-459c-abfe-368bee2332a8"
+        variables: {
+          userName,
+        },
       });
 
-      vapi.on("speech-start", () => {
-        console.log("Assistant speech has started.");
-        setVoiceState(VoiceState.Speaking);
-      });
-
-      vapi.on("speech-end", () => {
-        console.log("Assistant speech has ended.");
-        setVoiceState(VoiceState.Processing);
-      });
-
-      vapi.on("call-end", () => {
-        console.log("Call has ended.");
-        setVoiceState(VoiceState.Idle);
-      });
-
+      // Listen for messages from Vapi
       vapi.on("message", (message) => {
         console.log("Vapi message:", message);
         if (
@@ -81,17 +69,14 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
         }
       });
 
+      vapi.on("speech-end", () => {
+        setVoiceState(VoiceState.Processing);
+      });
+
       vapi.on("error", (error) => {
         console.error("Vapi error:", error);
         toast.error("Vapi error: " + error.message);
         setVoiceState(VoiceState.Idle);
-      });
-
-      // Start the Vapi assistant with the assistant ID as a string
-      await vapi.start(process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID, {
-        variableValues: {
-          userName,
-        },
       });
     } catch (error) {
       console.error("Error in handleStart:", error);

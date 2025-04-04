@@ -15,6 +15,12 @@ const VideoConference: React.FC<VideoConferenceProps> = ({
   userName,
   jobField,
 }) => {
+  const [isConnected, setIsConnected] = useState(false);
+
+  const handleConnect = () => {
+    setIsConnected(true);
+  };
+
   return (
     <div className="w-full lg:w-[90%] lg:max-w-5xl h-[70vh] sm:h-[80vh] lg:h-[85vh] rounded-lg flex flex-col justify-between p-4 mx-auto">
       {/* Video Feed Area */}
@@ -41,7 +47,7 @@ const VideoConference: React.FC<VideoConferenceProps> = ({
           onStart={() => console.log("Interview started")}
           onCancel={() => {
             console.log("Interview cancelled");
-            // Reset to show Connect button again
+            setIsConnected(false); // Reset to show Connect button again
           }}
         />
       </div>

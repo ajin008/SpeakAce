@@ -1,8 +1,8 @@
 "use client";
 import React, { useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { toast } from "sonner";
-import { vapi } from "@/lib/vapi.sdk";
+import { toast } from "sonner"; // For user feedback
+import { vapi, checkVapiHealth } from "@/lib/vapi.sdk";
 
 enum VoiceState {
   Idle = "idle",
@@ -16,6 +16,9 @@ interface VoiceControlProps {
   userId: string;
   userName: string;
   jobField: string;
+  interviewType: string;
+  experienceLevel: string;
+  amount: number;
 }
 
 const VoiceControl: React.FC<VoiceControlProps> = ({
@@ -24,87 +27,95 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
   userId,
   userName,
   jobField,
+  interviewType,
+  experienceLevel,
+  amount,
 }) => {
   const [voiceState, setVoiceState] = useState<VoiceState>(VoiceState.Idle);
-  const [collectedData, setCollectedData] = useState<{
-    numQuestions?: string;
-    experienceLevel?: string;
-    interviewType?: string;
-  }>({});
 
   const handleStart = useCallback(async () => {
-    try {
-      setVoiceState(VoiceState.Speaking);
-      onStart?.();
-      toast.success("Conversation started!");
-
-      // Log for debugging
-      console.log("Starting Vapi with userName:", userName);
-      console.log("Assistant ID:", process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID);
-
-      // Validate inputs
-      if (!process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID) {
-        throw new Error("NEXT_PUBLIC_VAPI_WORKFLOW_ID is not defined");
-      }
-      if (!userName) {
-        throw new Error("userName is missing");
-      }
-
-      // Set up event listeners BEFORE starting the call
-      vapi.on("call-start", () => {
-        console.log("Call has started.");
-      });
-
-      vapi.on("speech-start", () => {
-        console.log("Assistant speech has started.");
-        setVoiceState(VoiceState.Speaking);
-      });
-
-      vapi.on("speech-end", () => {
-        console.log("Assistant speech has ended.");
+    if (voiceState === VoiceState.Idle) {
+      try {
         setVoiceState(VoiceState.Processing);
-      });
+        onStart?.();
 
-      vapi.on("call-end", () => {
-        console.log("Call has ended.");
-        setVoiceState(VoiceState.Idle);
-      });
-
-      vapi.on("message", (message) => {
-        console.log("Vapi message:", message);
-        if (
-          message.type === "transcript" &&
-          message.transcriptType === "final"
-        ) {
-          const userResponse = message.transcript;
-          console.log("User said:", userResponse);
+        // Verify VAPI connection first
+        const isHealthy = await checkVapiHealth();
+        if (!isHealthy) {
+          throw new Error("Voice system unavailable");
         }
-      });
 
-      vapi.on("error", (error) => {
-        console.error("Vapi error:", error);
-        toast.error("Vapi error: " + error.message);
+        // Start call with null check
+        const call = await vapi.start({
+          assistant: process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!,
+          context: {
+            jobField,
+            username: userName,
+            userId,
+            interviewType,
+            experienceLevel,
+            amount,
+          },
+        });
+
+        if (!call) {
+          throw new Error("Failed to initialize call");
+        }
+
+        // Event handlers with additional checks
+        const safeRegister = (event: string, handler: Function) => {
+          if (call && typeof call.on === "function") {
+            call.on(event, handler);
+          } else {
+            console.warn(`Cannot register handler for ${event}`);
+          }
+        };
+
+        safeRegister("call-start", () => {
+          setVoiceState(VoiceState.Speaking);
+          toast.success("Connected to interview");
+        });
+
+        safeRegister("call-end", () => {
+          setVoiceState(VoiceState.Idle);
+          toast.success("Interview completed");
+        });
+
+        safeRegister("error", (error: Error) => {
+          setVoiceState(VoiceState.Idle);
+          toast.error(`Error: ${error.message}`);
+        });
+      } catch (error) {
         setVoiceState(VoiceState.Idle);
-      });
-
-      // Start the Vapi assistant with the assistant ID as a string
-      await vapi.start(process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID, {
-        variableValues: {
-          userName,
-        },
-      });
-    } catch (error) {
-      console.error("Error in handleStart:", error);
-      toast.error("Failed to start: " + error.message);
-      setVoiceState(VoiceState.Idle);
+        const message =
+          error instanceof Error ? error.message : "Connection failed";
+        toast.error(message);
+        console.error("VAPI Error:", {
+          error,
+          env: {
+            token: !!process.env.NEXT_PUBLIC_VAPI_WEB_TOKEN,
+            workflowId: process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID,
+          },
+        });
+      }
     }
-  }, [userName, onStart]);
+  }, [
+    voiceState,
+    onStart,
+    userId,
+    userName,
+    jobField,
+    interviewType,
+    experienceLevel,
+    amount,
+  ]);
 
   const handleCancel = useCallback(() => {
-    if (voiceState !== VoiceState.Idle) {
-      vapi.stop();
+    if (
+      voiceState === VoiceState.Speaking ||
+      voiceState === VoiceState.Processing
+    ) {
       setVoiceState(VoiceState.Idle);
-      setCollectedData({});
       onCancel?.();
       toast.info("Interview cancelled.");
     }
@@ -112,6 +123,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
 
   return (
     <div className="flex items-center space-x-4 bg-gray-100 px-4 py-2 rounded-full">
+      {/* Microphone Button */}
       <motion.button
         whileTap={{ scale: 0.95 }}
         onClick={handleStart}
@@ -125,8 +137,10 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
         aria-label={voiceState !== VoiceState.Idle ? "In Progress" : "Start"}
       >
         {voiceState === VoiceState.Processing ? (
+          // Show spinner for processing state
           <div className="animate-spin h-6 w-6 border-2 border-white rounded-full border-t-transparent"></div>
         ) : (
+          // Show microphone icon for other states
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="32"
@@ -145,6 +159,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
         )}
       </motion.button>
 
+      {/* Cancel Button */}
       <motion.button
         whileTap={{ scale: 0.95 }}
         onClick={handleCancel}
