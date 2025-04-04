@@ -137,7 +137,7 @@ const InterviewHeading: FC<InterviewHeadingProps> = ({
         variants={itemVariants}
       >
         <span className="text-gray-900">Nail Your Next Interview with </span>
-        <span className="text-[#755CCD]">AI-Powered Precision</span>
+        <span className="text-[#755CCD]">AI Reviewer</span>
       </motion.h1>
 
       {/* Subheading */}
@@ -145,8 +145,8 @@ const InterviewHeading: FC<InterviewHeadingProps> = ({
         className="text-gray-400 text-center text-base sm:text-lg mb-6 sm:mb-10 max-w-sm sm:max-w-md mx-auto"
         variants={itemVariants}
       >
-        Submit your job role, start the mock interview, and get instant AI
-        feedback—it's that easy!
+        Submit your topic, get expert AI feedback, and excel as a tech student
+        with personalized reviews.
       </motion.p>
 
       {/* Search/Input Field with improved text handling */}

@@ -42,25 +42,20 @@ const AboutModal: FC<AboutModalProps> = ({ onClose }) => {
 
           <div className="text-[#16151A] text-lg">
             <p className="mb-5">
-              Welcome to MockMate – your friendly neighborhood interview
-              sidekick.
+              Welcome to SpeakAce, where we believe in the power of effective
+              communication. Our mission is to help you master the art of
+              speaking with confidence and clarity.
             </p>
             <p className="mb-5">
-              Let’s face it – job interviews can feel like mini boss battles.
-              That’s where MockMate steps in. Built in 2025 with caffeine, code,
-              and compassion, MockMate is here to help jobseekers level up their
-              confidence and communication before stepping into the real ring.
-              Whether you're prepping for your first job or aiming for that
-              dream role, MockMate simulates realistic mock interviews with
-              AI-powered feedback that actually makes sense (no vague “Be more
-              confident” advice here 🙄).
+              Founded in 2023, SpeakAce has quickly become a leading platform
+              for speech improvement, offering cutting-edge tools and resources
+              for students, professionals, and anyone looking to enhance their
+              communication skills.
             </p>
             <p>
-              With voice-based Q&A, instant feedback, and a sprinkle of humor to
-              keep your nerves in check, we’re on a mission to turn sweaty palms
-              into solid handshakes (metaphorically, of course). So suit up (or
-              not, we won’t judge), fire up MockMate, and get ready to crush
-              that next interview like a boss.
+              Our team of expert linguists and communication specialists work
+              tirelessly to deliver the best experience possible. Join us on
+              this journey to becoming a more articulate and confident speaker!
             </p>
           </div>
         </div>

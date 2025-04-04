@@ -34,7 +34,7 @@ const Header: FC = () => {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            Mock<span style={{ color: "#755CCD" }}>Mate</span>
+            speak<span style={{ color: "#755CCD" }}>Ace</span>
           </motion.div>
         </Link>
 

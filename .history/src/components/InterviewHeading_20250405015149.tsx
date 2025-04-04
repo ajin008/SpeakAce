@@ -145,8 +145,8 @@ const InterviewHeading: FC<InterviewHeadingProps> = ({
         className="text-gray-400 text-center text-base sm:text-lg mb-6 sm:mb-10 max-w-sm sm:max-w-md mx-auto"
         variants={itemVariants}
       >
-        Submit your job role, start the mock interview, and get instant AI
-        feedback—it's that easy!
+        Submit your topic, get expert AI feedback, and excel as a tech student
+        with personalized reviews.
       </motion.p>
 
       {/* Search/Input Field with improved text handling */}

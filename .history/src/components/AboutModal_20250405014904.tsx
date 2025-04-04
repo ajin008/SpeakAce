@@ -47,7 +47,7 @@ const AboutModal: FC<AboutModalProps> = ({ onClose }) => {
             </p>
             <p className="mb-5">
               Let’s face it – job interviews can feel like mini boss battles.
-              That’s where MockMate steps in. Built in 2025 with caffeine, code,
+              That’s where MockMate steps in. Built in 2023 with caffeine, code,
               and compassion, MockMate is here to help jobseekers level up their
               confidence and communication before stepping into the real ring.
               Whether you're prepping for your first job or aiming for that
