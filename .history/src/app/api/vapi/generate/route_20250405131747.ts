@@ -3,18 +3,9 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { db } from "@/lib/firebaseAdmin";
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY!);
-const VAPI_SECRET = process.env.VAPI_SECRET; // Add this to .env.local
 
 export async function POST(request: Request) {
   console.log("Received request to /api/vapi/generate");
-  const authHeader = request.headers.get("X-VAPI-SECRET");
-
-  // Check authentication
-  if (VAPI_SECRET && authHeader !== VAPI_SECRET) {
-    console.log("Unauthorized request - Invalid or missing X-VAPI-SECRET");
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
     const body = await request.json();
     console.log("Received payload from Vapi:", body);
@@ -80,13 +71,9 @@ export async function POST(request: Request) {
       return NextResponse.json({
         message: "Interview data and feedback saved successfully",
       });
-    } else {
-      console.log("Incomplete payload:", { userId, questions, answers });
-      return NextResponse.json(
-        { error: "Invalid payload: questions and answers required" },
-        { status: 400 }
-      );
     }
+
+    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   } catch (error) {
     console.error("Error processing request:", error);
     return NextResponse.json(

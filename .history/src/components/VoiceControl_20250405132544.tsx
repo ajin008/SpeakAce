@@ -70,7 +70,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
       });
 
       vapi.on("call-end", () => {
-        console.log("Call has ended naturally.");
+        console.log("Call has ended.");
         setVoiceState(VoiceState.Idle);
       });
 
@@ -122,61 +122,36 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
             questions: [], // Vapi will populate this via the backend
             answers: [], // Vapi will populate this via the backend
           };
-          console.log("Sending payload to backend:", payload);
-          try {
-            const response = await fetch("/api/vapi/generate", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            });
+          const response = await fetch("/api/vapi/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
 
-            if (!response.ok) {
-              const errorText = await response.text();
-              throw new Error(
-                `HTTP error! status: ${response.status}, ${errorText}`
-              );
-            }
-            const data = await response.json();
-            console.log("Backend response:", data);
-            toast.success("Interview data and feedback saved!");
-          } catch (error) {
-            console.error("Fetch error:", error);
-            toast.error(`Failed to save data: ${error.message}`);
-          }
-          // Ensure call ends, even if fetch fails
+          if (!response.ok) throw new Error("Failed to save interview data");
+          const data = await response.json();
+          toast.success("Interview data and feedback saved!");
           vapi.stop();
         }
       });
 
       vapi.on("error", (error) => {
-        console.error("Vapi error details:", JSON.stringify(error, null, 2));
-        toast.error("Vapi error: " + (error.message || "Unknown error"));
+        console.error("Vapi error:", error);
+        toast.error("Vapi error: " + error.message);
         setVoiceState(VoiceState.Idle);
-        vapi.stop(); // Force stop on error
       });
 
       // Start the Vapi assistant with the assistant ID as a string
-      const call = await vapi.start(process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID, {
+      await vapi.start(process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID, {
         variableValues: {
           userName,
           jobField,
         },
       });
-
-      // Optional: Add a timeout to force call termination if it hangs
-      setTimeout(() => {
-        if (voiceState !== VoiceState.Idle) {
-          console.log("Forcing call termination due to timeout");
-          vapi.stop();
-          setVoiceState(VoiceState.Idle);
-          toast.error("Call timed out and ended.");
-        }
-      }, 60000); // 60 seconds timeout
     } catch (error) {
       console.error("Error in handleStart:", error);
       toast.error("Failed to start: " + error.message);
       setVoiceState(VoiceState.Idle);
-      if (vapi) vapi.stop(); // Ensure cleanup on initial error
     }
   }, [userName, jobField, userId, collectedData]);
 
