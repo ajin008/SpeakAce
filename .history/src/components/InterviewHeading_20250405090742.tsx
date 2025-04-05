@@ -116,26 +116,9 @@ const InterviewHeading: FC<InterviewHeadingProps> = ({
       return;
     }
 
-    const loadingToastId = toast.loading("Validating your input...");
-
     if (isSignedIn) {
       try {
-        const validation = await validateInput(trimmedValue);
-
-        if (!validation.isValid) {
-          toast.dismiss(loadingToastId);
-          toast.error(
-            `Invalid input: ${
-              validation.message || "Please enter a professional job field"
-            }`
-          );
-          return;
-        }
-
-        // Dismiss loading toast before navigation
-        toast.dismiss(loadingToastId);
-        toast.success("Input validated! Preparing your interview...");
-
+        // Store basic data in sessionStorage
         sessionStorage.setItem(
           "interviewData",
           JSON.stringify({

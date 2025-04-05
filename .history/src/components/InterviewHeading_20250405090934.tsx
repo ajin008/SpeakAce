@@ -131,11 +131,7 @@ const InterviewHeading: FC<InterviewHeadingProps> = ({
           );
           return;
         }
-
-        // Dismiss loading toast before navigation
-        toast.dismiss(loadingToastId);
-        toast.success("Input validated! Preparing your interview...");
-
+        // Store basic data in sessionStorage
         sessionStorage.setItem(
           "interviewData",
           JSON.stringify({

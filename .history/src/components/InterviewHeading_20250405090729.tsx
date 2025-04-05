@@ -101,10 +101,7 @@ const InterviewHeading: FC<InterviewHeadingProps> = ({
       if (!response.ok) throw new Error("Validation failed");
       const data = await response.json();
       return data;
-    } catch (error) {
-      console.error("Validation error:", error);
-      return { isValid: false, message: "Validation service unavailable" };
-    }
+    } catch (error) {}
   };
 
   // Submit handler with validation
@@ -116,26 +113,9 @@ const InterviewHeading: FC<InterviewHeadingProps> = ({
       return;
     }
 
-    const loadingToastId = toast.loading("Validating your input...");
-
     if (isSignedIn) {
       try {
-        const validation = await validateInput(trimmedValue);
-
-        if (!validation.isValid) {
-          toast.dismiss(loadingToastId);
-          toast.error(
-            `Invalid input: ${
-              validation.message || "Please enter a professional job field"
-            }`
-          );
-          return;
-        }
-
-        // Dismiss loading toast before navigation
-        toast.dismiss(loadingToastId);
-        toast.success("Input validated! Preparing your interview...");
-
+        // Store basic data in sessionStorage
         sessionStorage.setItem(
           "interviewData",
           JSON.stringify({

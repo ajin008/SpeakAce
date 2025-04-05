@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     ) {
       // Generate interview questions
       const prompt = `Generate ${numQuestions} interview questions for a ${experienceLevel} ${jobField} developer with a tech stack of ${techStack}. Return the questions as an array of strings.`;
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
       const result = await model.generateContent(prompt);
       const generatedQuestions = result.response
         .text()
