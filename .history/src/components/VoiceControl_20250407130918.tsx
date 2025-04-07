@@ -89,63 +89,81 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
 
         if (
           message.type === "transcript" &&
-          message.transcriptType === "final"
+          message.transcriptType === "final" &&
+          message.role === "assistant"
         ) {
-          const transcript = message.transcript.toLowerCase().trim();
+          console.log("Assistant said:", message.transcript);
+        }
 
-          if (message.role === "user") {
-            // Try to infer based on the previous question asked (you can keep a ref or variable for last question)
-            if (lastQuestion.includes("tech stack")) {
-              setCollectedData((prev) => ({ ...prev, techStack: transcript }));
-            } else if (lastQuestion.includes("experience level")) {
-              setCollectedData((prev) => ({
-                ...prev,
-                experienceLevel: transcript,
-              }));
-            } else if (lastQuestion.includes("how many questions")) {
-              const parsed = parseInt(transcript.match(/\d+/)?.[0] || "0");
-              setCollectedData((prev) => ({ ...prev, numQuestions: parsed }));
-            } else {
-              // Could be an answer to a generated interview question
-              setAnswers((prev) => [...prev, transcript]);
-            }
+        if (
+          message.type === "transcript" &&
+          message.transcriptType === "final" &&
+          message.role === "user"
+        ) {
+          const userResponse = message.transcript.trim();
+          console.log("User said:", userResponse);
+
+          // Collect initial info
+          if (!collectedData.techStack) {
+            setCollectedData((prev) => ({ ...prev, techStack: userResponse }));
+            vapi.speak(
+              "Great! What is your experience level? (Beginner, mid-level, or senior-level)"
+            );
+          } else if (!collectedData.experienceLevel) {
+            setCollectedData((prev) => ({
+              ...prev,
+              experienceLevel: userResponse,
+            }));
+            vapi.speak(
+              "Got it! How many questions would you like me to prepare?"
+            );
+          } else if (!collectedData.numQuestions) {
+            setCollectedData((prev) => ({
+              ...prev,
+              numQuestions: userResponse,
+            }));
+            vapi.speak("Perfect! Let's start the interview...");
           }
+        } else if (
+          message.type === "transcript" &&
+          message.transcriptType === "final" &&
+          message.role === "assistant" &&
+          message.transcript.toLowerCase().includes("have a wonderful day")
+        ) {
+          // Send final data to backend when Vapi indicates completion
+          const payload = {
+            userId,
+            userName,
+            jobField,
+            techStack: collectedData.techStack,
+            experienceLevel: collectedData.experienceLevel,
+            numQuestions: collectedData.numQuestions,
+            questions: [], // Vapi will populate this via the backend
+            answers: [], // Vapi will populate this via the backend
+          };
+          console.log("Sending payload to backend:", payload);
+          try {
+            const response = await fetch("/api/vapi/generate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
 
-          if (message.role === "assistant") {
-            // Store the last question asked to use in mapping responses
-            setLastQuestion(transcript);
-
-            // If it's the end trigger
-            if (
-              transcript.includes("thank you") ||
-              transcript.includes("interview complete")
-            ) {
-              setShowViewResultsButton(true);
-              setTimeout(() => {
-                const payload = {
-                  userId,
-                  userName,
-                  jobField,
-                  techStack: collectedData.techStack,
-                  experienceLevel: collectedData.experienceLevel,
-                  numQuestions: collectedData.numQuestions,
-                  questions,
-                  answers,
-                };
-
-                console.log("Sending payload to backend:", payload);
-
-                fetch("/api/vapi/generate", {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    "X-VAPI-SECRET": process.env.NEXT_PUBLIC_VAPI_SECRET!,
-                  },
-                  body: JSON.stringify(payload),
-                });
-              }, 1500);
+            if (!response.ok) {
+              const errorText = await response.text();
+              throw new Error(
+                `HTTP error! status: ${response.status}, ${errorText}`
+              );
             }
+            const data = await response.json();
+            console.log("Backend response:", data);
+            toast.success("Interview data and feedback saved!");
+          } catch (error) {
+            console.error("Fetch error:", error);
+            toast.error(`Failed to save data: ${error.message}`);
           }
+          // Ensure call ends, even if fetch fails
+          vapi.stop();
         }
       });
 

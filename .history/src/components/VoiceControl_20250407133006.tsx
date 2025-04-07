@@ -89,53 +89,36 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
 
         if (
           message.type === "transcript" &&
-          message.transcriptType === "final"
+          message.transcriptType === "final" &&
+          message.role === "assistant"
         ) {
-          const transcript = message.transcript.toLowerCase().trim();
+          const finalLine = message.transcript.toLowerCase().trim();
 
-          if (message.role === "user") {
-            // Try to infer based on the previous question asked (you can keep a ref or variable for last question)
-            if (lastQuestion.includes("tech stack")) {
-              setCollectedData((prev) => ({ ...prev, techStack: transcript }));
-            } else if (lastQuestion.includes("experience level")) {
-              setCollectedData((prev) => ({
-                ...prev,
-                experienceLevel: transcript,
-              }));
-            } else if (lastQuestion.includes("how many questions")) {
-              const parsed = parseInt(transcript.match(/\d+/)?.[0] || "0");
-              setCollectedData((prev) => ({ ...prev, numQuestions: parsed }));
-            } else {
-              // Could be an answer to a generated interview question
-              setAnswers((prev) => [...prev, transcript]);
-            }
-          }
+          if (
+            finalLine.includes("thank you") ||
+            finalLine.includes("have a wonderful day") ||
+            finalLine.includes("interview complete")
+          ) {
+            // Show button
+            setShowViewResultsButton(true);
 
-          if (message.role === "assistant") {
-            // Store the last question asked to use in mapping responses
-            setLastQuestion(transcript);
+            // Delay to let the assistant finish speaking and avoid race condition
+            setTimeout(async () => {
+              // Send to backend
+              const payload = {
+                userId,
+                userName,
+                jobField,
+                techStack: collectedData.techStack,
+                experienceLevel: collectedData.experienceLevel,
+                numQuestions: collectedData.numQuestions,
+                questions: [],
+                answers: [],
+              };
 
-            // If it's the end trigger
-            if (
-              transcript.includes("thank you") ||
-              transcript.includes("interview complete")
-            ) {
-              setShowViewResultsButton(true);
-              setTimeout(() => {
-                const payload = {
-                  userId,
-                  userName,
-                  jobField,
-                  techStack: collectedData.techStack,
-                  experienceLevel: collectedData.experienceLevel,
-                  numQuestions: collectedData.numQuestions,
-                  questions,
-                  answers,
-                };
-
-                console.log("Sending payload to backend:", payload);
-
-                fetch("/api/vapi/generate", {
+              console.log("Sending payload to backend:", payload);
+              try {
+                const response = await fetch("/api/vapi/generate", {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
@@ -143,8 +126,25 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
                   },
                   body: JSON.stringify(payload),
                 });
-              }, 1500);
-            }
+
+                if (!response.ok) {
+                  const errorText = await response.text();
+                  throw new Error(
+                    `HTTP error! status: ${response.status}, ${errorText}`
+                  );
+                }
+
+                const data = await response.json();
+                console.log("Backend response:", data);
+                toast.success("Interview data and feedback saved!");
+              } catch (error) {
+                console.error("Fetch error:", error);
+                toast.error(`Failed to save data: ${error.message}`);
+              }
+
+              // Finally, stop the call
+              vapi.stop();
+            }, 1500); // 1.5s delay to let Vapi finish audio
           }
         }
       });
